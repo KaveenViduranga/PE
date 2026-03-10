@@ -2,11 +2,16 @@ import pandas as pd
 from playwright.sync_api import sync_playwright
 
 
-SEARCH_URL = "https://pels.texas.gov/roster/pesearch.html?ver=V062723"
+SEARCH_URL = "https://pels.texas.gov/roster/pesearch.html?ver=V062723##result-top"
 
 
-def scrape_lastname_letter(letter: str, output_file: str | None = None) -> None:
-    """Use the PE search page to get all PEs whose last name starts with a letter."""
+def scrape_lastname_letter(
+    letter: str,
+    branch: str = "Civil",
+    output_file: str | None = None,
+) -> None:
+    """Use the PE search page to get all PEs whose last name starts with a letter,
+    optionally limiting by branch (defaults to Civil)."""
     letter = letter.upper()
     if output_file is None:
         output_file = f"{letter}_PEs.csv"
@@ -28,6 +33,15 @@ def scrape_lastname_letter(letter: str, output_file: str | None = None) -> None:
         text_boxes = page.get_by_role("textbox")
         last_name_input = text_boxes.nth(1)
         last_name_input.fill(letter)
+
+        # Select the desired Branch from the dropdown (e.g., Civil)
+        if branch:
+            print(f"Selecting branch '{branch}' ...")
+            # On this page the Branch field is the first <select> element in the form.
+            # Using a position-based locator is more reliable than get_by_label here.
+            page.wait_for_selector("select", state="visible")
+            branch_select = page.locator("select").first
+            branch_select.select_option(label=branch)
 
         # Click the Search button
         page.click('input[value="Search 🔎"]')
@@ -115,10 +129,12 @@ def scrape_lastname_letter(letter: str, output_file: str | None = None) -> None:
     print(f"Total rows extracted for '{letter}': {len(extracted)}")
     df = pd.DataFrame(extracted)
 
-    # Keep only Civil Engineering records
-    df = df[df["Branch"].str.contains("Civil", case=False, na=False)]
-
-    print(f"Total Civil Engineering rows for '{letter}': {len(df)}")
+    # Keep only selected Branch records (default: Civil Engineering)
+    if branch:
+        df = df[df["Branch"].str.contains(branch, case=False, na=False, regex=False)]
+        print(
+            f"Total rows for branch '{branch}' and last-name letter '{letter}': {len(df)}"
+        )
     df.to_csv(output_file, index=False)
     print(f"Data saved to {output_file}")
 
