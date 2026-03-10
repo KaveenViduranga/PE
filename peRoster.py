@@ -9,7 +9,7 @@ def scrape_lastname_letter(
     letter: str,
     branch: str = "Civil",
     output_file: str | None = None,
-) -> None:
+) -> pd.DataFrame:
     """Use the PE search page to get all PEs whose last name starts with a letter,
     optionally limiting by branch (defaults to Civil)."""
     letter = letter.upper()
@@ -144,15 +144,45 @@ def scrape_lastname_letter(
         print(
             f"Total rows for branch '{branch}' and last-name letter '{letter}': {len(df)}"
         )
-    df.to_csv(output_file, index=False)
-    print(f"Data saved to {output_file}")
+    if output_file is not None:
+        df.to_csv(output_file, index=False)
+        print(f"Data saved to {output_file}")
+
+    # Always return the DataFrame so callers can combine results
+    return df
 
 
 if __name__ == "__main__":
-    # Change this list if you only want certain letters
-    letters = ["A"]
+    # Change this list if you only want certain letters/prefixes
+    letters = [
+        "A",
+        "AN",
+        "AO",
+        "AP",
+        "AQ",
+        "AR",
+        "AS",
+        "AT",
+        "AU",
+        "AV",
+        "AW",
+        "AX",
+        "AY",
+        "AZ",
+    ]
+
+    all_dfs: list[pd.DataFrame] = []
 
     for lt in letters:
         print("=" * 60)
-        scrape_lastname_letter(lt)
+        # Let the function save its own per-prefix file (e.g., A_PEs.csv)
+        df_letter = scrape_lastname_letter(lt)
+        all_dfs.append(df_letter)
+
+    # Combine all prefixes into a single CSV as well
+    if all_dfs:
+        combined_df = pd.concat(all_dfs, ignore_index=True)
+        combined_name = f"{letters[0]}_to_{letters[-1]}_combined_PEs.csv"
+        combined_df.to_csv(combined_name, index=False)
+        print(f"Combined data saved to {combined_name}")
     
